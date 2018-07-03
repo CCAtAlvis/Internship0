@@ -1,0 +1,64 @@
+"oauth_client": [
+	{
+		"client_id": "649904107499-gsr6tsrnmleas84v0mntbd5pefdcvl7j.apps.googleusercontent.com",
+		"client_type": 1,
+		"android_info": {
+			"package_name": "com.internship.MultiQuiz",
+			"certificate_hash": "2cddcadeffc76f4d3075010ea6b66ab324a5b808"
+		}
+	},
+	{
+		"client_id": "649904107499-ap28rlht6tltso0qgd08ij6rc4f6co97.apps.googleusercontent.com",
+		"client_type": 3
+	}
+]
+
+private void GoogleSignIn () {
+	GoogleSignIn.Configuration = new GoogleSignInConfiguration {
+		RequestIdToken = true,
+		// Copy this value from the google-service.json file.
+		// oauth_client with type == 3
+		WebClientId = "649904107499-ap28rlht6tltso0qgd08ij6rc4f6co97.apps.googleusercontent.com"
+	};
+
+	Task<GoogleSignInUser> signIn = GoogleSignIn.DefaultInstance.SignIn ();
+
+	TaskCompletionSource<FirebaseUser> signInCompleted = new TaskCompletionSource<FirebaseUser> ();
+	signIn.ContinueWith (task => {
+		if (task.IsCanceled) {
+			signInCompleted.SetCanceled ();
+		} else if (task.IsFaulted) {
+			signInCompleted.SetException (task.Exception);
+		} else {
+
+			Credential credential = Firebase.Auth.GoogleAuthProvider.GetCredential (((Task<GoogleSignInUser>)task).Result.IdToken, null);
+			auth.SignInWithCredentialAsync (credential).ContinueWith (authTask => {
+				if (authTask.IsCanceled) {
+					signInCompleted.SetCanceled();
+				} else if (authTask.IsFaulted) {
+					signInCompleted.SetException(authTask.Exception);
+				} else {
+					signInCompleted.SetResult(((Task<FirebaseUser>)authTask).Result);
+				}
+			});
+		}
+	});
+
+	Firebase.Auth.FirebaseAuth auth = Firebase.Auth.FirebaseAuth.DefaultInstance;
+
+	Firebase.Auth.Credential credential = Firebase.Auth.GoogleAuthProvider.GetCredential(googleIdToken, googleAccessToken);
+	auth.SignInWithCredentialAsync(credential).ContinueWith(task => {
+		if (task.IsCanceled) {
+			Debug.LogError("SignInWithCredentialAsync was canceled.");
+			return;
+		}
+		if (task.IsFaulted) {
+			Debug.LogError("SignInWithCredentialAsync encountered an error: " + task.Exception);
+			return;
+		}
+
+		Firebase.Auth.FirebaseUser newUser = task.Result;
+		Debug.LogFormat("User signed in successfully: {0} ({1})",
+			newUser.DisplayName, newUser.UserId);
+	});
+}
