@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.UI;
 using Holoville.HOTween;
 
 public class PlayerController : NetworkBehaviour {
@@ -7,32 +8,41 @@ public class PlayerController : NetworkBehaviour {
 
     public float turnSpeed = 5.0f;
     public float yRotation = 5.0F;
+	public float force = 175f;
+	public Text GameOver;
+
+	[SerializeField]
+	private float boostTime = 2f;
+	private float appliedForce;
+	private Vector3 PT;
+
+	[SyncVar]
+	public int counter = 0;
 
     void Start ()
 	{
 		player = gameObject.GetComponent<Rigidbody> ();
+		PT = transform.position;
+		GameOver = GameObject.FindObjectOfType<Text> ();
 	}
 	
 	void Update ()
 	{
         if (!isLocalPlayer)
-        {
-            // exit from update if this is not the local player
             return;
-        }
 
+		appliedForce = force;
+		if (Input.GetKey (KeyCode.Space) && boostTime >= 0f) {
+			boostTime -= Time.deltaTime;
+			appliedForce *= 3;
+		}
+	
         // current rotation
         Vector3 CR = transform.rotation.eulerAngles;
-        // Camera transform
-        Vector3 CT = Camera.main.transform.position;
+		PT = transform.position;
 
-		if (Input.GetKey (KeyCode.W)) {
-            // player.AddForce (transform.forward * 300f);
-            // transform.position += transform.position.normalized;
-
-            //player.velocity = (transform.InverseTransformDirection(transform.forward) * 3f);
-            player.AddRelativeForce(transform.forward * 300f);
-        }
+		if (Input.GetKey (KeyCode.W))
+            player.AddRelativeForce(transform.forward * appliedForce);
 
         if (Input.GetKey (KeyCode.D)) {
             if (CR.z > 344f || CR.z < 17f)
@@ -46,17 +56,37 @@ public class PlayerController : NetworkBehaviour {
 
         // Tween back to 0 rotation
         if (CR.z > 300f)
-        {
             HOTween.To(transform, 5, new TweenParms().Prop("eulerAngles", new Vector3(0, 0, 359.999f), false));
-        }
         else
-        {
             HOTween.To(transform, 5, new TweenParms().Prop("eulerAngles", new Vector3(0, 0, 0), false));
-        }
-    
-        Camera.main.transform.position = new Vector3(CT.x, CT.y, transform.position.z - 5);
 
         yRotation += Input.GetAxis("Horizontal") * turnSpeed;
         transform.eulerAngles = new Vector3(0, yRotation, transform.eulerAngles.z);
     }
+
+	public override void OnStartLocalPlayer () {
+		Camera.main.GetComponent<CameraController>().setTarget(gameObject.transform);
+		this.gameObject.name = counter.ToString ();
+		counter++;
+	}
+
+	[Command]
+	public void CmdSetWinner(string name)  {
+		RpcDoMagic (name);
+	}
+
+	[ClientRpc]
+	public void RpcDoMagic(string name)
+	{
+		GameOver.text = this.gameObject.name;
+		Debug.Log ("gameObject name: " + this.gameObject.name);
+		Debug.Log ("incomming name: " + name);
+		if (name == this.gameObject.name) {
+			GameOver.text = "You Won !!!";
+		} else {
+			GameOver.text = "You lost :(";
+		}
+
+		Time.timeScale = 0;
+	}
 }
