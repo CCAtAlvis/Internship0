@@ -64,7 +64,7 @@ public class GameManager : MonoBehaviour {
 
 	void ButtonClicked(string buttonNo)
 	{
-		Debug.Log ("Button clicked = " + buttonNo);
+//		Debuxg.Log ("Button clicked = " + buttonNo);
 		FBM.AddUserInQueue (buttonNo);
 
 	}
